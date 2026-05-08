@@ -1,0 +1,73 @@
+{
+    "name": "smart-dato/post-it-sdk",
+    "description": "Poste Italiane (POST_IT) shipping API SDK for Laravel — Saloon-based client with typed DTOs.",
+    "keywords": [
+        "smart-dato",
+        "laravel",
+        "post-it",
+        "poste-italiane",
+        "shipping",
+        "saloon"
+    ],
+    "homepage": "https://github.com/smart-dato/post-it-sdk",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "SmartDato",
+            "email": "info@smart-dato.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/contracts": "^10.0||^11.0||^12.0||^13.0",
+        "saloonphp/saloon": "^4.0",
+        "saloonphp/laravel-plugin": "^4.0",
+        "spatie/laravel-package-tools": "^1.16"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.14",
+        "pestphp/pest": "^3.0||^4.0",
+        "phpstan/phpstan": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "SmartDato\\PostIt\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SmartDato\\PostIt\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "analyse": "vendor/bin/phpstan analyse",
+        "lint": "vendor/bin/pint",
+        "test:lint": "vendor/bin/pint --test",
+        "test:types": "vendor/bin/phpstan analyse",
+        "test:unit": "vendor/bin/pest",
+        "test": [
+            "@test:lint",
+            "@test:types",
+            "@test:unit"
+        ],
+        "test-coverage": "vendor/bin/pest --coverage",
+        "format": "vendor/bin/pint"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "SmartDato\\PostIt\\PostItServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

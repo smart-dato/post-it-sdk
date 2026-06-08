@@ -16,9 +16,10 @@ use SmartDato\PostIt\Data\TrackingResponseData;
  * `POST /postalandlogistics/parcel/tracking`.
  *
  * The request envelope is fixed to `arg0.shipmentsData[].waybillNumber`; the
- * remaining fields (`statusDescription = 'E'`, `customerType = 'DQ'`,
- * `lastTracingState = 'N'`) are constants documented by Poste Italiane and
- * unlikely to vary, so they are baked in.
+ * remaining fields (`statusDescription = 'E'`, `customerType = 'DQ'`) are
+ * constants documented by Poste Italiane and unlikely to vary, so they are
+ * baked in. `lastTracingState` accepts only `{Y, N}`: `N` returns the full
+ * history, `Y` only the latest state.
  */
 final class TrackShipmentRequest extends Request implements HasBody
 {
@@ -57,7 +58,7 @@ final class TrackShipmentRequest extends Request implements HasBody
                 'shipmentsData' => [
                     [
                         'waybillNumber' => $this->waybillNumber,
-                        'lastTracingState' => $this->fullHistory ? 'N' : 'S',
+                        'lastTracingState' => $this->fullHistory ? 'N' : 'Y',
                     ],
                 ],
                 'statusDescription' => 'E',

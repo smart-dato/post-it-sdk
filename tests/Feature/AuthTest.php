@@ -15,7 +15,7 @@ afterEach(fn () => MockClient::destroyGlobal());
 it('exchanges credentials for an access token and applies Bearer header', function (): void {
     $mock = MockClient::global([
         AuthRequest::class => MockResponse::make(['access_token' => 'tok-123'], 200),
-        TrackShipmentRequest::class => MockResponse::make(['shipments' => [['waybillNumber' => 'WB1', 'tracingHistory' => []]]], 200),
+        TrackShipmentRequest::class => MockResponse::make(['return' => ['code' => 0, 'shipment' => [['waybillNumber' => 'WB1', 'tracking' => []]]]], 200),
     ]);
 
     $connector = new PosteItalianeConnector('https://api.test', 'cli-1');
@@ -76,7 +76,7 @@ it('throws when authentication request fails', function (): void {
 it('caches the token across multiple requests', function (): void {
     $mock = MockClient::global([
         AuthRequest::class => MockResponse::make(['access_token' => 'tok-cached'], 200),
-        TrackShipmentRequest::class => MockResponse::make(['shipments' => [['waybillNumber' => 'WB1', 'tracingHistory' => []]]], 200),
+        TrackShipmentRequest::class => MockResponse::make(['return' => ['code' => 0, 'shipment' => [['waybillNumber' => 'WB1', 'tracking' => []]]]], 200),
     ]);
 
     $authenticator = new SessionAuthenticator(
@@ -98,10 +98,41 @@ it('caches the token across multiple requests', function (): void {
     $mock->assertSentCount(3, TrackShipmentRequest::class);
 });
 
+it('refreshes the token once it nears expiry', function (): void {
+    $mock = MockClient::global([
+        AuthRequest::class => MockResponse::make(['access_token' => 'tok', 'expires_in' => 3599], 200),
+        TrackShipmentRequest::class => MockResponse::make(['return' => ['code' => 0, 'shipment' => [['waybillNumber' => 'WB1', 'tracking' => []]]]], 200),
+    ]);
+
+    $now = 1_000;
+    $authenticator = new SessionAuthenticator(
+        clientId: 'cli-1',
+        clientSecret: 'sec-1',
+        scope: 'shipping',
+        grantType: 'client_credentials',
+        authConnector: new PosteItalianeConnector('https://api.test', 'cli-1'),
+        clock: function () use (&$now): int {
+            return $now;
+        },
+    );
+
+    $connector = new PosteItalianeConnector('https://api.test', 'cli-1');
+    $connector->authenticate($authenticator);
+
+    $connector->send(new TrackShipmentRequest('WB1'));
+    $now = 4_000;
+    $connector->send(new TrackShipmentRequest('WB1'));
+    $mock->assertSentCount(1, AuthRequest::class);
+
+    $now = 5_000;
+    $connector->send(new TrackShipmentRequest('WB1'));
+    $mock->assertSentCount(2, AuthRequest::class);
+});
+
 it('sends correct credential body to /user/sessions', function (): void {
     $mock = MockClient::global([
         AuthRequest::class => MockResponse::make(['access_token' => 'tok-x'], 200),
-        TrackShipmentRequest::class => MockResponse::make(['shipments' => [['waybillNumber' => 'WB', 'tracingHistory' => []]]], 200),
+        TrackShipmentRequest::class => MockResponse::make(['return' => ['code' => 0, 'shipment' => [['waybillNumber' => 'WB', 'tracking' => []]]]], 200),
     ]);
 
     $connector = new PosteItalianeConnector('https://api.test', 'cli-9');

@@ -5,27 +5,47 @@ declare(strict_types=1);
 use SmartDato\PostIt\Data\TrackingResponseData;
 use SmartDato\PostIt\Exceptions\PostItApiException;
 
-it('parses primary shape (shipments + tracingHistory)', function (): void {
+it('parses the documented return envelope', function (): void {
     $response = TrackingResponseData::fromArray([
-        'shipments' => [[
-            'waybillNumber' => 'WB1',
-            'tracingHistory' => [
-                ['statusCode' => 'IN_TRANSIT', 'statusDescription' => 'In transit', 'location' => 'Roma', 'date' => '2026-05-01T08:00:00Z'],
-            ],
-        ]],
+        'return' => [
+            'outcome' => 'OK',
+            'code' => 0,
+            'result' => 'OK',
+            'shipment' => [[
+                'waybillNumber' => 'WB1',
+                'product' => 'POSTEDELIVERY INTERNATIONAL EXPRESS',
+                'tracking' => [
+                    [
+                        'data' => '2013-06-27 18:51:00',
+                        'officeDescription' => 'Genoa (GE)',
+                        'StatusDescription' => 'In transit at Poste operational centre',
+                        'synthesisStatusDescription' => 'Shipment is in transit near Genoa (GE)',
+                        'phase' => 'IN TRANSIT',
+                        'status' => 'PCP',
+                    ],
+                ],
+            ]],
+        ],
     ]);
 
     expect($response->waybillNumber)->toBe('WB1')
         ->and($response->events)->toHaveCount(1)
-        ->and($response->events[0]->statusCode)->toBe('IN_TRANSIT');
+        ->and($response->events[0]->statusCode)->toBe('PCP')
+        ->and($response->events[0]->statusDescription)->toBe('In transit at Poste operational centre')
+        ->and($response->events[0]->location)->toBe('Genoa (GE)')
+        ->and($response->events[0]->phase)->toBe('IN TRANSIT')
+        ->and($response->events[0]->synthesisStatusDescription)->toBe('Shipment is in transit near Genoa (GE)')
+        ->and($response->events[0]->occurredAt?->format('Y-m-d H:i:s'))->toBe('2013-06-27 18:51:00');
 });
 
-it('parses alternate shape (shipmentsData + tracingStates)', function (): void {
+it('tolerates an envelope that is not wrapped in return', function (): void {
     $response = TrackingResponseData::fromArray([
-        'shipmentsData' => [[
+        'outcome' => 'OK',
+        'code' => 0,
+        'shipment' => [[
             'waybillNumber' => 'WB2',
-            'tracingStates' => [
-                ['statusCode' => 'ACCEPTED', 'statusDescription' => 'Accepted', 'location' => 'Hub', 'statusDate' => '2026-04-30T07:00:00Z'],
+            'tracking' => [
+                ['status' => 'ACCEPTED', 'StatusDescription' => 'Accepted', 'data' => '2026-04-30 07:00:00'],
             ],
         ]],
     ]);
@@ -34,28 +54,41 @@ it('parses alternate shape (shipmentsData + tracingStates)', function (): void {
         ->and($response->events[0]->statusCode)->toBe('ACCEPTED');
 });
 
-it('throws when result.errorCode is non-zero', function (): void {
+it('throws when code is non-zero', function (): void {
     expect(fn () => TrackingResponseData::fromArray([
-        'result' => ['errorCode' => 7, 'errorDescription' => 'Tracking down'],
-    ]))->toThrow(PostItApiException::class, 'tracking [7] Tracking down');
+        'return' => [
+            'outcome' => 'KO',
+            'code' => 200,
+            'messages' => [['messages' => ['Tracking down']]],
+        ],
+    ]))->toThrow(PostItApiException::class, 'tracking [200] Tracking down');
+});
+
+it('throws when outcome is KO without an error code', function (): void {
+    expect(fn () => TrackingResponseData::fromArray([
+        'return' => ['outcome' => 'KO'],
+    ]))->toThrow(PostItApiException::class, 'tracking [KO] Tracking request failed');
 });
 
 it('throws when no shipment data is present', function (): void {
-    expect(fn () => TrackingResponseData::fromArray([]))
+    expect(fn () => TrackingResponseData::fromArray(['return' => ['outcome' => 'OK', 'code' => 0]]))
         ->toThrow(PostItApiException::class, 'missing shipment data');
 });
 
-it('skips non-array tracing entries', function (): void {
+it('skips non-array tracking entries', function (): void {
     $response = TrackingResponseData::fromArray([
-        'shipments' => [[
-            'waybillNumber' => 'WB1',
-            'tracingHistory' => [
-                ['statusCode' => 'A', 'date' => '2026-05-01T08:00:00Z'],
-                'garbage-string',
-                42,
-                ['statusCode' => 'B', 'date' => '2026-05-02T08:00:00Z'],
-            ],
-        ]],
+        'return' => [
+            'code' => 0,
+            'shipment' => [[
+                'waybillNumber' => 'WB1',
+                'tracking' => [
+                    ['status' => 'A', 'data' => '2026-05-01 08:00:00'],
+                    'garbage-string',
+                    42,
+                    ['status' => 'B', 'data' => '2026-05-02 08:00:00'],
+                ],
+            ]],
+        ],
     ]);
 
     expect($response->events)->toHaveCount(2)
@@ -65,34 +98,39 @@ it('skips non-array tracing entries', function (): void {
 
 it('returns null occurredAt for unparseable date strings', function (): void {
     $response = TrackingResponseData::fromArray([
-        'shipments' => [[
-            'waybillNumber' => 'WB1',
-            'tracingHistory' => [
-                ['statusCode' => 'X', 'date' => 'not-a-date'],
-            ],
-        ]],
+        'return' => [
+            'code' => 0,
+            'shipment' => [[
+                'waybillNumber' => 'WB1',
+                'tracking' => [['status' => 'X', 'data' => 'not-a-date']],
+            ]],
+        ],
     ]);
 
     expect($response->events[0]->occurredAt)->toBeNull();
 });
 
-it('returns null occurredAt when date field is missing', function (): void {
+it('returns null occurredAt when data field is missing', function (): void {
     $response = TrackingResponseData::fromArray([
-        'shipments' => [[
-            'waybillNumber' => 'WB1',
-            'tracingHistory' => [
-                ['statusCode' => 'X'],
-            ],
-        ]],
+        'return' => [
+            'code' => 0,
+            'shipment' => [[
+                'waybillNumber' => 'WB1',
+                'tracking' => [['status' => 'X']],
+            ]],
+        ],
     ]);
 
     expect($response->events[0]->occurredAt)->toBeNull();
 });
 
-it('treats result.errorCode = 0 as success', function (): void {
+it('treats code = 0 with empty tracking as success', function (): void {
     $response = TrackingResponseData::fromArray([
-        'result' => ['errorCode' => 0],
-        'shipments' => [['waybillNumber' => 'WB1', 'tracingHistory' => []]],
+        'return' => [
+            'outcome' => 'OK',
+            'code' => 0,
+            'shipment' => [['waybillNumber' => 'WB1', 'tracking' => []]],
+        ],
     ]);
 
     expect($response->waybillNumber)->toBe('WB1')

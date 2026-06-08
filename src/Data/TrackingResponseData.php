@@ -11,9 +11,10 @@ use Throwable;
 /**
  * Parsed response of `POST /postalandlogistics/parcel/tracking`.
  *
- * Poste Italiane returns a deeply nested envelope keyed by `result` /
- * `shipments` / `tracingHistory`; this DTO flattens the per-shipment events
- * into {@see TrackingEventData}, while preserving the original waybill number.
+ * Poste Italiane wraps the payload in a `return` envelope carrying an
+ * `outcome`/`code` result and a `shipment[]` list, each holding a `tracking[]`
+ * history. This DTO unwraps the envelope and flattens the events of the first
+ * shipment into {@see TrackingEventData}, preserving the waybill number.
  */
 final readonly class TrackingResponseData
 {
@@ -32,17 +33,13 @@ final readonly class TrackingResponseData
      */
     public static function fromArray(array $response): self
     {
-        if (isset($response['result']) && is_array($response['result'])) {
-            $errorCode = $response['result']['errorCode'] ?? null;
-            if ($errorCode !== null && $errorCode !== 0) {
-                $description = (string) ($response['result']['errorDescription'] ?? 'Unknown error');
-                throw new PostItApiException(
-                    sprintf('Poste Italiane tracking [%s] %s', $errorCode, $description),
-                );
-            }
-        }
+        $envelope = isset($response['return']) && is_array($response['return'])
+            ? $response['return']
+            : $response;
 
-        $shipment = $response['shipments'][0] ?? $response['shipmentsData'][0] ?? null;
+        self::assertSuccessful($envelope);
+
+        $shipment = $envelope['shipment'][0] ?? null;
 
         if (! is_array($shipment)) {
             throw new PostItApiException(
@@ -52,19 +49,66 @@ final readonly class TrackingResponseData
 
         $waybill = (string) ($shipment['waybillNumber'] ?? '');
         $events = [];
-        foreach ($shipment['tracingHistory'] ?? $shipment['tracingStates'] ?? [] as $event) {
+        foreach ($shipment['tracking'] ?? [] as $event) {
             if (! is_array($event)) {
                 continue;
             }
             $events[] = new TrackingEventData(
-                statusCode: isset($event['statusCode']) ? (string) $event['statusCode'] : null,
-                statusDescription: isset($event['statusDescription']) ? (string) $event['statusDescription'] : null,
-                location: isset($event['location']) ? (string) $event['location'] : null,
-                occurredAt: self::parseDate($event['date'] ?? $event['statusDate'] ?? null),
+                statusCode: isset($event['status']) ? (string) $event['status'] : null,
+                statusDescription: isset($event['StatusDescription']) ? (string) $event['StatusDescription'] : null,
+                location: isset($event['officeDescription']) ? (string) $event['officeDescription'] : null,
+                occurredAt: self::parseDate($event['data'] ?? null),
+                phase: isset($event['phase']) ? (string) $event['phase'] : null,
+                synthesisStatusDescription: isset($event['synthesisStatusDescription']) ? (string) $event['synthesisStatusDescription'] : null,
             );
         }
 
         return new self(waybillNumber: $waybill, events: $events);
+    }
+
+    /**
+     * @param  array<string, mixed>  $envelope
+     *
+     * @throws PostItApiException when the envelope reports a non-OK outcome.
+     */
+    private static function assertSuccessful(array $envelope): void
+    {
+        $code = $envelope['code'] ?? null;
+        $outcome = $envelope['outcome'] ?? $envelope['result'] ?? null;
+
+        $failedByCode = $code !== null && (int) $code !== 0;
+        $failedByOutcome = is_string($outcome) && strtoupper($outcome) === 'KO';
+
+        if (! $failedByCode && ! $failedByOutcome) {
+            return;
+        }
+
+        throw new PostItApiException(sprintf(
+            'Poste Italiane tracking [%s] %s',
+            $code ?? 'KO',
+            self::extractErrorMessage($envelope),
+        ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $envelope
+     */
+    private static function extractErrorMessage(array $envelope): string
+    {
+        $source = $envelope['messages'] ?? [];
+
+        if (! is_array($source)) {
+            return 'Tracking request failed';
+        }
+
+        $messages = [];
+        array_walk_recursive($source, function (mixed $value) use (&$messages): void {
+            if (is_string($value) && $value !== '') {
+                $messages[] = $value;
+            }
+        });
+
+        return $messages === [] ? 'Tracking request failed' : implode('; ', $messages);
     }
 
     private static function parseDate(mixed $value): ?DateTimeImmutable

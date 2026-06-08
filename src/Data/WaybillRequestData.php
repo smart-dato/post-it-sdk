@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SmartDato\PostIt\Data;
 
 use DateTimeImmutable;
+use DateTimeZone;
 
 /**
  * Top-level body for `POST /postalandlogistics/parcel/waybill`.
@@ -35,7 +36,7 @@ final readonly class WaybillRequestData
 
         return [
             'costCenterCode' => $this->costCenterCode,
-            'shipmentDate' => $this->shipmentDate->format('Y-m-d\TH:i:s\Z'),
+            'shipmentDate' => $this->shipmentDate->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.vO'),
             'paperless' => $this->paperless ? 'true' : 'false',
             'waybills' => $waybills,
         ];

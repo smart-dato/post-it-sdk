@@ -14,7 +14,13 @@ use SmartDato\PostIt\Exceptions\PostItApiException;
 final readonly class WaybillResponseData
 {
     /**
-     * @param  array<int, array{code: string, downloadURL: string}>  $waybills
+     * @param  array<int, array{
+     *     code: string,
+     *     downloadURL: ?string,
+     *     internationalCode: ?string,
+     *     internationalCode2: ?string,
+     *     downloadUrlImg: ?string
+     * }>  $waybills
      */
     public function __construct(
         public string $costCenterCode,
@@ -25,7 +31,7 @@ final readonly class WaybillResponseData
     /**
      * @param  array<string, mixed>  $response
      *
-     * @throws PostItApiException when the response contains a non-zero `result.errorCode` or is missing required fields.
+     * @throws PostItApiException when the response (or any individual waybill) carries a non-zero error code or is missing required fields.
      */
     public static function fromArray(array $response): self
     {
@@ -44,14 +50,23 @@ final readonly class WaybillResponseData
             if (! is_array($waybill)) {
                 continue;
             }
+
+            self::assertWaybillSucceeded($waybill);
+
             $code = (string) ($waybill['code'] ?? '');
-            $url = (string) ($waybill['downloadURL'] ?? '');
-            if ($code === '' || $url === '') {
+            if ($code === '') {
                 throw new PostItApiException(
-                    'Poste Italiane response is missing waybill code or downloadURL.',
+                    'Poste Italiane response is missing a waybill code.',
                 );
             }
-            $waybills[] = ['code' => $code, 'downloadURL' => $url];
+
+            $waybills[] = [
+                'code' => $code,
+                'downloadURL' => self::stringOrNull($waybill['downloadURL'] ?? null),
+                'internationalCode' => self::stringOrNull($waybill['internationalCode'] ?? null),
+                'internationalCode2' => self::stringOrNull($waybill['internationalCode2'] ?? null),
+                'downloadUrlImg' => self::stringOrNull($waybill['downloadUrlImg'] ?? null),
+            ];
         }
 
         if ($waybills === []) {
@@ -65,5 +80,33 @@ final readonly class WaybillResponseData
             contractCode: (string) ($response['contractCode'] ?? ''),
             waybills: $waybills,
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $waybill
+     *
+     * @throws PostItApiException when the waybill reports a non-zero errorCode.
+     */
+    private static function assertWaybillSucceeded(array $waybill): void
+    {
+        $errorCode = $waybill['errorCode'] ?? null;
+
+        if ($errorCode === null || $errorCode === 0) {
+            return;
+        }
+
+        $description = (string) ($waybill['errorDescription'] ?? 'Unknown error');
+        throw new PostItApiException(
+            sprintf('Poste Italiane waybill [%s] %s', $errorCode, $description),
+        );
+    }
+
+    private static function stringOrNull(mixed $value): ?string
+    {
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        return $value;
     }
 }

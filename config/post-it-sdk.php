@@ -13,6 +13,4 @@ return [
         'scope' => env('POST_IT_SCOPE', ''),
         'grant_type' => env('POST_IT_GRANT_TYPE', 'client_credentials'),
     ],
-
-    'session_cache_ttl' => env('POST_IT_SESSION_CACHE_TTL', 3500),
 ];

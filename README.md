@@ -10,9 +10,11 @@ Saloon-based client for the Poste Italiane (POST_IT) shipping API.
 - OAuth-style session authentication (`POST /user/sessions`) with per-account token caching — in-memory by default, or a shared cache across processes
 - Waybill creation (`POST /postalandlogistics/parcel/waybill`) — domestic **and** international, returns the label PDF URL
 - Shipment tracking (`POST /postalandlogistics/parcel/tracking`) — returns normalised events
-- International lookups — countries (`/international/nations`), country/product detail (`/international/nation/details`) and TARIC codes (`/international/taric`)
+- International lookups — countries (`/international/nations`), country/product detail (`/international/nation/details`), TARIC codes (`/international/taric`), extra services & carrier (`/waybill/services`) and PUDO location finder (`/locationFinder`)
 - Pickups & deposits — book/edit/cancel a pickup (`/pickup`), pickup report (`/pickupReport`), deposits list (`/depositsList`) and release (`/depositsRelease`)
-- Typed readonly DTOs for every request/response payload, with enums (`PrintFormat`, `Product`, `PaymentMode`, `ReceiverType`, `BookingType`, `TimeSlot`, `PickupOperation`, `ReleaseAction`) and a lenient `make()` factory
+- DigiPOD, delivery points, transit time & Green Index — proof-of-delivery request/download (`/digipodRequest`, `/digipodDownload`), PUDO master data (`/deliveryPoint`), transit-time estimates (`/transitTime`) and the emissions dashboard (`/gibp/dashboardGreenMeter`)
+- **Full coverage of the v1.9 manual** — every documented service has a typed `PostIt` method
+- Typed readonly DTOs for every request/response payload, with enums (`PrintFormat`, `Product`, `PaymentMode`, `ReceiverType`, `BookingType`, `TimeSlot`, `PickupOperation`, `ReleaseAction`, `DeliveryPointServiceType`) and a lenient `make()` factory
 - Mockable end-to-end via Saloon's `MockClient`
 
 ## Installation
@@ -252,6 +254,52 @@ $release->failed();                                 // per-barcode outcomes that
 The pickup/deposit responses report success via an `OK`/`KO` outcome; the SDK
 throws `PostItApiException` on failure (except per-barcode release outcomes,
 which are exposed on `DepositsReleaseResponseData::$items` / `failed()`).
+
+## DigiPOD, delivery points, transit time & Green Index
+
+```php
+use SmartDato\PostIt\Data\TransitTimeQueryData;
+use SmartDato\PostIt\Data\LocationFinderQueryData;
+use SmartDato\PostIt\Data\GreenIndexFilterData;
+use SmartDato\PostIt\Data\ServicesQueryData;
+use SmartDato\PostIt\Data\ServiceAddressData;
+use SmartDato\PostIt\Data\DeclarationData;
+use SmartDato\PostIt\Enums\DeliveryPointServiceType;
+use SmartDato\PostIt\Enums\Product;
+
+// Digital proof of delivery — request, then download (base64 → bytes).
+$client->requestDigipod(['ZA123456789IT'], mail: 'ops@example.com');
+$pod = $client->downloadDigipod('ZA123456789IT');
+file_put_contents($pod->filename ?? 'pod.pdf', $pod->contents());
+
+// PUDO master data by postal code + service type.
+$points = $client->findDeliveryPoints('00152', DeliveryPointServiceType::PuntoPoste);
+
+// Transit-time estimate (dates are sent as GMT Unix timestamps).
+$transit = $client->getTransitTime(new TransitTimeQueryData(
+    acceptanceChannel: 'SDA', productCode: 'PBS',
+    originZip: '88833', destinationZip: '64010',
+    startDate: new DateTimeImmutable('2026-06-20 18:00:00'),
+));
+$transit->transitTimes[0]->transitTime;          // e.g. 4 (days)
+
+// International PUDO finder (PDB International Plus only — DHL passthrough).
+$pudos = $client->findInternationalPudos(new LocationFinderQueryData(countryCode: 'FI', addressLocality: 'helsinky'));
+
+// Available extra services + compatibility matrix (+ carrier for international).
+$services = $client->getServices(new ServicesQueryData(
+    costCenterCode: 'CDC-100', product: Product::Express,
+    sender: new ServiceAddressData(zipCode: '00142', city: 'ROME', country: 'ITA1'),
+    receiver: new ServiceAddressData(zipCode: '20100', city: 'MILANO', country: 'ITA1'),
+    declared: [new DeclarationData(weightGrams: 1500, heightCm: 20, lengthCm: 30, widthCm: 40)],
+));
+$services->services;            // ['APT000912', ...]
+$services->compatibilities;     // code => compatible codes
+
+// Green Index emissions dashboard.
+$green = $client->getGreenIndex(new GreenIndexFilterData(products: ['PDB Standard']));
+$green->emissions?->totalEmissions;
+```
 
 > **Note:** date formats and a few field names differ between the manual's
 > tables and its JSON examples (e.g. `pickupDate` as `YYYYMMDD` vs `YYYY-MM-DD`,

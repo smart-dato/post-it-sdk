@@ -12,29 +12,48 @@ use Saloon\Http\Response;
 use SmartDato\PostIt\Auth\SessionAuthenticator;
 use SmartDato\PostIt\Cache\LaravelTokenStore;
 use SmartDato\PostIt\Connector\PosteItalianeConnector;
+use SmartDato\PostIt\Data\DeliveryPointResponseData;
 use SmartDato\PostIt\Data\DepositsListFilterData;
 use SmartDato\PostIt\Data\DepositsListResponseData;
 use SmartDato\PostIt\Data\DepositsReleaseData;
 use SmartDato\PostIt\Data\DepositsReleaseResponseData;
+use SmartDato\PostIt\Data\DigipodDownloadResponseData;
+use SmartDato\PostIt\Data\DigipodRequestResponseData;
+use SmartDato\PostIt\Data\GreenIndexFilterData;
+use SmartDato\PostIt\Data\GreenIndexResponseData;
+use SmartDato\PostIt\Data\LocationFinderQueryData;
+use SmartDato\PostIt\Data\LocationFinderResponseData;
 use SmartDato\PostIt\Data\NationDetailsResponseData;
 use SmartDato\PostIt\Data\NationsResponseData;
 use SmartDato\PostIt\Data\PickupBookingData;
 use SmartDato\PostIt\Data\PickupBookingResponseData;
 use SmartDato\PostIt\Data\PickupReportFilterData;
 use SmartDato\PostIt\Data\PickupReportResponseData;
+use SmartDato\PostIt\Data\ServicesQueryData;
+use SmartDato\PostIt\Data\ServicesResponseData;
 use SmartDato\PostIt\Data\TaricResponseData;
 use SmartDato\PostIt\Data\TrackingResponseData;
+use SmartDato\PostIt\Data\TransitTimeQueryData;
+use SmartDato\PostIt\Data\TransitTimeResponseData;
 use SmartDato\PostIt\Data\WaybillRequestData;
 use SmartDato\PostIt\Data\WaybillResponseData;
+use SmartDato\PostIt\Enums\DeliveryPointServiceType;
 use SmartDato\PostIt\Exceptions\PostItApiException;
 use SmartDato\PostIt\Requests\BookPickupRequest;
 use SmartDato\PostIt\Requests\CreateWaybillRequest;
+use SmartDato\PostIt\Requests\DownloadDigipodRequest;
+use SmartDato\PostIt\Requests\FindDeliveryPointsRequest;
+use SmartDato\PostIt\Requests\FindInternationalPudosRequest;
+use SmartDato\PostIt\Requests\GetGreenIndexRequest;
 use SmartDato\PostIt\Requests\GetNationDetailsRequest;
 use SmartDato\PostIt\Requests\GetPickupReportRequest;
+use SmartDato\PostIt\Requests\GetServicesRequest;
+use SmartDato\PostIt\Requests\GetTransitTimeRequest;
 use SmartDato\PostIt\Requests\ListDepositsRequest;
 use SmartDato\PostIt\Requests\ListNationsRequest;
 use SmartDato\PostIt\Requests\ListTaricRequest;
 use SmartDato\PostIt\Requests\ReleaseDepositRequest;
+use SmartDato\PostIt\Requests\RequestDigipodRequest;
 use SmartDato\PostIt\Requests\TrackShipmentRequest;
 
 /**
@@ -230,6 +249,103 @@ final readonly class PostIt
     public function releaseDeposit(DepositsReleaseData $data): DepositsReleaseResponseData
     {
         $response = $this->connector->send(new ReleaseDepositRequest($data));
+
+        return $response->dto();
+    }
+
+    /**
+     * Request a digital proof of delivery for one or more waybills.
+     *
+     * @param  array<int, string>  $barcodes
+     *
+     * @throws FatalRequestException
+     * @throws RequestException
+     */
+    public function requestDigipod(array $barcodes, ?string $mail = null): DigipodRequestResponseData
+    {
+        $response = $this->connector->send(new RequestDigipodRequest($barcodes, $mail));
+
+        return $response->dto();
+    }
+
+    /**
+     * Download the digital proof-of-delivery document for a waybill.
+     *
+     * @throws FatalRequestException
+     * @throws RequestException
+     * @throws PostItApiException
+     */
+    public function downloadDigipod(string $barcode): DigipodDownloadResponseData
+    {
+        $response = $this->connector->send(new DownloadDigipodRequest($barcode));
+
+        return $response->dto();
+    }
+
+    /**
+     * Delivery point master data for a postal code and service type.
+     *
+     * @throws FatalRequestException
+     * @throws RequestException
+     * @throws PostItApiException
+     */
+    public function findDeliveryPoints(string $zipCode, DeliveryPointServiceType|string $serviceType): DeliveryPointResponseData
+    {
+        $response = $this->connector->send(new FindDeliveryPointsRequest($zipCode, $serviceType));
+
+        return $response->dto();
+    }
+
+    /**
+     * Estimate transit time for a product between two postal codes.
+     *
+     * @throws FatalRequestException
+     * @throws RequestException
+     */
+    public function getTransitTime(TransitTimeQueryData $query): TransitTimeResponseData
+    {
+        $response = $this->connector->send(new GetTransitTimeRequest($query));
+
+        return $response->dto();
+    }
+
+    /**
+     * Find international PUDO points (PDB International Plus only).
+     *
+     * @throws FatalRequestException
+     * @throws RequestException
+     */
+    public function findInternationalPudos(LocationFinderQueryData $query): LocationFinderResponseData
+    {
+        $response = $this->connector->send(new FindInternationalPudosRequest($query));
+
+        return $response->dto();
+    }
+
+    /**
+     * Extract the extra services, compatibility matrix and (for international)
+     * the carrier for a shipment.
+     *
+     * @throws FatalRequestException
+     * @throws RequestException
+     * @throws PostItApiException
+     */
+    public function getServices(ServicesQueryData $query): ServicesResponseData
+    {
+        $response = $this->connector->send(new GetServicesRequest($query));
+
+        return $response->dto();
+    }
+
+    /**
+     * The Green Index emissions dashboard for the given filter.
+     *
+     * @throws FatalRequestException
+     * @throws RequestException
+     */
+    public function getGreenIndex(GreenIndexFilterData $filter): GreenIndexResponseData
+    {
+        $response = $this->connector->send(new GetGreenIndexRequest($filter));
 
         return $response->dto();
     }

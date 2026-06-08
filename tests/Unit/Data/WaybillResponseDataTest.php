@@ -59,6 +59,37 @@ it('accepts a paperless waybill with no downloadURL', function (): void {
         ->and($response->waybills[0]['downloadURL'])->toBeNull();
 });
 
+it('throws when an individual waybill carries a non-zero errorCode', function (): void {
+    expect(fn () => WaybillResponseData::fromArray([
+        'waybills' => [
+            ['errorCode' => 12, 'errorDescription' => 'Unknown service code'],
+        ],
+    ]))->toThrow(PostItApiException::class, 'Poste Italiane waybill [12] Unknown service code');
+});
+
+it('captures international codes and the reverse label image url', function (): void {
+    $response = WaybillResponseData::fromArray([
+        'costCenterCode' => 'CC',
+        'contractCode' => 'CT',
+        'waybills' => [[
+            'code' => 'WB1',
+            'downloadURL' => 'https://x.test/a.pdf',
+            'internationalCode' => 'INT-1',
+            'internationalCode2' => 'INT-2',
+            'downloadUrlImg' => 'https://x.test/a.gif',
+            'errorCode' => 0,
+        ]],
+    ]);
+
+    expect($response->waybills[0])->toBe([
+        'code' => 'WB1',
+        'downloadURL' => 'https://x.test/a.pdf',
+        'internationalCode' => 'INT-1',
+        'internationalCode2' => 'INT-2',
+        'downloadUrlImg' => 'https://x.test/a.gif',
+    ]);
+});
+
 it('treats result.errorCode = 0 as success', function (): void {
     $response = WaybillResponseData::fromArray([
         'result' => ['errorCode' => 0, 'errorDescription' => 'OK'],

@@ -26,6 +26,7 @@ final readonly class AddressData
         public ?string $addressId = null,
         public string $country = 'ITA1',
         public string $countryName = 'Italia',
+        public ?string $province = null,
     ) {}
 
     /**
@@ -33,7 +34,7 @@ final readonly class AddressData
      */
     public function toArray(): array
     {
-        return [
+        $data = [
             'nameSurname' => $this->nameSurname,
             'contactName' => $this->contactName,
             'addressId' => $this->addressId,
@@ -47,5 +48,11 @@ final readonly class AddressData
             'cellphone' => $this->cellphone,
             'phone' => $this->phone,
         ];
+
+        if ($this->province !== null) {
+            $data['province'] = $this->province;
+        }
+
+        return $data;
     }
 }

@@ -13,6 +13,7 @@ use SmartDato\PostIt\Enums\Product;
  * Multiple waybills can be batched in one HTTP call by passing several of
  * these to {@see WaybillRequestData}. `printFormat` and `product` accept the
  * typed enums or a raw string for contract-specific values not yet modelled.
+ * Pass an {@see InternationalData} block for international products.
  */
 final readonly class WaybillData
 {
@@ -28,6 +29,7 @@ final readonly class WaybillData
         public array $declared,
         public string $content = 'goods',
         public ?ServicesData $services = null,
+        public ?InternationalData $international = null,
     ) {}
 
     /**
@@ -40,17 +42,23 @@ final readonly class WaybillData
             $declared[] = $declaration->toArray();
         }
 
+        $data = [
+            'declared' => $declared,
+            'content' => $this->content,
+            'services' => $this->services instanceof ServicesData ? $this->services->toArray() : (object) [],
+            'sender' => $this->sender->toArray(),
+            'receiver' => $this->receiver->toArray(),
+        ];
+
+        if ($this->international instanceof InternationalData) {
+            $data['international'] = $this->international->toArray();
+        }
+
         return [
             'clientReferenceId' => $this->clientReferenceId,
             'printFormat' => $this->printFormat instanceof PrintFormat ? $this->printFormat->value : $this->printFormat,
             'product' => $this->product instanceof Product ? $this->product->value : $this->product,
-            'data' => [
-                'declared' => $declared,
-                'content' => $this->content,
-                'services' => $this->services instanceof ServicesData ? $this->services->toArray() : (object) [],
-                'sender' => $this->sender->toArray(),
-                'receiver' => $this->receiver->toArray(),
-            ],
+            'data' => $data,
         ];
     }
 }

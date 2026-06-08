@@ -134,6 +134,48 @@ $labelPdfUrl = $response->waybills[0]['downloadURL'];
 `PostItApiException` is thrown when the upstream returns
 `result.errorCode !== 0` or when the response is missing required fields.
 
+## International shipments
+
+For international products (`APT000903` / `APT000904` / `APT001013`) add an
+`InternationalData` block and the customs fields on each declaration. Sender
+and receiver require `contactName`, `email`, `phone`, and a `province` for
+US/Canada destinations.
+
+```php
+use SmartDato\PostIt\Data\InternationalData;
+use SmartDato\PostIt\Data\ItemData;
+use SmartDato\PostIt\Enums\ReceiverType;
+
+new WaybillData(
+    clientReferenceId: 'ORDER-INT-1',
+    printFormat: PrintFormat::A4,             // ZPL is not allowed for international
+    product: Product::InternationalStandard,  // 'APT000904'
+    sender: $sender,
+    receiver: $receiver,                       // country e.g. 'GER1', countryName 'Germania'
+    declared: [
+        new DeclarationData(
+            weightGrams: 3000, heightCm: 10, lengthCm: 50, widthCm: 25,
+            description: 'Merce non destinata alla vendita',
+            packagingCode: 'C',
+            nationality: 'IT',
+            items: [
+                // required for APT000904 / APT001013; itemNumber is auto-assigned
+                new ItemData(taric: '6109100010', totalValueCents: 5000, quantity: 2, totalWeightGrams: 1500, originCountry: 'IT'),
+            ],
+        ),
+    ],
+    international: new InternationalData(
+        receiverType: ReceiverType::BusinessDelivery,
+        currency: 'EUR',
+        waybillTotalValue: '400',
+        contentCode: '11',
+    ),
+);
+```
+
+The customs/`international` fields are only serialised when set, so domestic
+payloads are unaffected.
+
 ## Tracking a shipment
 
 ```php

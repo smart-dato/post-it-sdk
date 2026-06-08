@@ -5,6 +5,7 @@ declare(strict_types=1);
 use SmartDato\PostIt\Enums\PaymentMode;
 use SmartDato\PostIt\Enums\PrintFormat;
 use SmartDato\PostIt\Enums\Product;
+use SmartDato\PostIt\Enums\ReceiverType;
 
 it('makes an enum from its exact backing value', function (): void {
     expect(PrintFormat::make('1011'))->toBe(PrintFormat::FORMAT_1011)
@@ -19,7 +20,8 @@ it('matches case-insensitively and trims whitespace', function (): void {
 
 it('matches on the case name as well as the value', function (): void {
     expect(Product::make('Express'))->toBe(Product::Express)
-        ->and(PaymentMode::make('AccountChargeBank'))->toBe(PaymentMode::AccountChargeBank);
+        ->and(PaymentMode::make('AccountChargeBank'))->toBe(PaymentMode::AccountChargeBank)
+        ->and(ReceiverType::make('businessDelivery'))->toBe(ReceiverType::BusinessDelivery);
 });
 
 it('returns the same instance when given an enum', function (): void {

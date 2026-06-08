@@ -56,13 +56,14 @@ $client = new PostIt(
 ## Creating a waybill
 
 ```php
-use SmartDato\PostIt\Constants\PrintFormat;
 use SmartDato\PostIt\Data\AddressData;
 use SmartDato\PostIt\Data\DeclarationData;
 use SmartDato\PostIt\Data\ServicesData;
 use SmartDato\PostIt\Data\WaybillData;
 use SmartDato\PostIt\Data\WaybillRequestData;
-use SmartDato\PostIt\Enums\PaymentModeEnum;
+use SmartDato\PostIt\Enums\PaymentMode;
+use SmartDato\PostIt\Enums\PrintFormat;
+use SmartDato\PostIt\Enums\Product;
 
 $response = $client->createWaybill(new WaybillRequestData(
     costCenterCode: 'CC100',
@@ -70,8 +71,8 @@ $response = $client->createWaybill(new WaybillRequestData(
     waybills: [
         new WaybillData(
             clientReferenceId: 'ORDER-123',
-            printFormat: PrintFormat::DEFAULT,        // '1011' — 10×11 cm
-            product: 'POSTACELERE',
+            printFormat: PrintFormat::default(),      // '1011' — 10×11 cm
+            product: Product::Express,                // 'APT000901'
             sender: new AddressData(
                 nameSurname: 'Sender Co',
                 contactName: 'Mario Rossi',
@@ -98,7 +99,7 @@ $response = $client->createWaybill(new WaybillRequestData(
             services: new ServicesData(
                 multicolloCode: 'APT000901',
                 codAmount: 50.0,
-                codPaymentMode: PaymentModeEnum::CashOnDelivery,
+                codPaymentMode: PaymentMode::CashOnDelivery,
             ),
         ),
     ],
@@ -124,21 +125,30 @@ foreach ($tracking->events as $event) {
 Pass `fullHistory: false` to receive only the latest tracing state instead of
 the entire history.
 
-## Print formats
+## Enums for fixed values
 
-`printFormat` is a free-form string because Poste Italiane accepts
-contract-specific values:
+Documented fixed-value fields are typed enums. Each exposes a lenient
+`make()` factory (trims, matches case-insensitively on value **or** case name,
+throws `ValueError` on a miss) and a null-returning `tryMake()`:
 
 ```php
-use SmartDato\PostIt\Constants\PrintFormat;
+use SmartDato\PostIt\Enums\PrintFormat;
+use SmartDato\PostIt\Enums\Product;
+use SmartDato\PostIt\Enums\PaymentMode;
 
-PrintFormat::A4;          // 'A4'
-PrintFormat::FORMAT_1011; // '1011'  (10×11 cm — default)
-PrintFormat::ZPL;         // 'ZPL'
-PrintFormat::DEFAULT;     // alias of FORMAT_1011
+PrintFormat::A4;            // 'A4'
+PrintFormat::FORMAT_1011;   // '1011' (10×11 cm)
+PrintFormat::ZPL;           // 'ZPL'
+PrintFormat::default();     // PrintFormat::FORMAT_1011
+
+PrintFormat::make('1011');  // PrintFormat::FORMAT_1011
+Product::make('APT000901'); // Product::Express
+PaymentMode::tryMake($raw); // PaymentMode|null
 ```
 
-If your account uses a different value, pass it as a raw string.
+`WaybillData::$printFormat` and `$product` accept the enum **or** a raw
+string, so contract-specific values not modelled here still pass through
+unchanged.
 
 ## Testing
 

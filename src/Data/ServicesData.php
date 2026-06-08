@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace SmartDato\PostIt\Data;
 
-use SmartDato\PostIt\Enums\PaymentModeEnum;
+use SmartDato\PostIt\Enums\PaymentMode;
 
 /**
  * Optional service block on a waybill.
@@ -22,7 +22,7 @@ final readonly class ServicesData
     public function __construct(
         public ?string $multicolloCode = null,
         public ?float $codAmount = null,
-        public ?PaymentModeEnum $codPaymentMode = null,
+        public ?PaymentMode $codPaymentMode = null,
         public array $extra = [],
     ) {}
 
@@ -37,7 +37,7 @@ final readonly class ServicesData
             $payload[$this->multicolloCode] = [];
         }
 
-        if ($this->codAmount !== null && $this->codPaymentMode instanceof PaymentModeEnum) {
+        if ($this->codAmount !== null && $this->codPaymentMode instanceof PaymentMode) {
             $payload['APT000918'] = [
                 'amount' => number_format($this->codAmount, 2, '.', ''),
                 'paymentMode' => $this->codPaymentMode->value,

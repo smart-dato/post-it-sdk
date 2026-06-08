@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use SmartDato\PostIt\Constants\PrintFormat;
 use SmartDato\PostIt\Data\AddressData;
 use SmartDato\PostIt\Data\DeclarationData;
 use SmartDato\PostIt\Data\WaybillData;
 use SmartDato\PostIt\Data\WaybillRequestData;
+use SmartDato\PostIt\Enums\PrintFormat;
 
 function makeWaybillRequestWithDate(DateTimeImmutable $shipmentDate): WaybillRequestData
 {

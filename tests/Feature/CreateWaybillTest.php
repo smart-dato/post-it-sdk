@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
-use SmartDato\PostIt\Constants\PrintFormat;
 use SmartDato\PostIt\Data\AddressData;
 use SmartDato\PostIt\Data\DeclarationData;
 use SmartDato\PostIt\Data\ServicesData;
 use SmartDato\PostIt\Data\WaybillData;
 use SmartDato\PostIt\Data\WaybillRequestData;
 use SmartDato\PostIt\Data\WaybillResponseData;
-use SmartDato\PostIt\Enums\PaymentModeEnum;
+use SmartDato\PostIt\Enums\PaymentMode;
+use SmartDato\PostIt\Enums\PrintFormat;
 use SmartDato\PostIt\Exceptions\PostItApiException;
 use SmartDato\PostIt\PostIt;
 use SmartDato\PostIt\Requests\AuthRequest;
@@ -32,7 +32,7 @@ function makeWaybillRequest(): WaybillRequestData
                 sender: new AddressData('Sender Co', 'Mario Rossi', 'Via Roma', '1', '00100', 'Roma', '393331111111', '393331111111'),
                 receiver: new AddressData('Receiver Co', 'Luigi Bianchi', 'Via Milano', '2', '20100', 'Milano', '393332222222', '393332222222'),
                 declared: [new DeclarationData(weightGrams: 1500, heightCm: 20, lengthCm: 30, widthCm: 40)],
-                services: new ServicesData(codAmount: 50.0, codPaymentMode: PaymentModeEnum::CashOnDelivery),
+                services: new ServicesData(codAmount: 50.0, codPaymentMode: PaymentMode::CashOnDelivery),
             ),
         ],
     );
@@ -107,7 +107,7 @@ it('serialises the request payload exactly as Poste Italiane expects', function 
 
     expect($waybills)->toHaveCount(1)
         ->and($waybills[0])->toHaveKeys(['clientReferenceId', 'printFormat', 'product', 'data'])
-        ->and($waybills[0]['printFormat'])->toBe(PrintFormat::A4);
+        ->and($waybills[0]['printFormat'])->toBe(PrintFormat::A4->value);
 
     /** @var array<string, mixed> $data */
     $data = $waybills[0]['data'];

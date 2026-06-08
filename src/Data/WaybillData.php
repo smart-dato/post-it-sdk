@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace SmartDato\PostIt\Data;
 
+use SmartDato\PostIt\Enums\PrintFormat;
+use SmartDato\PostIt\Enums\Product;
+
 /**
  * Single waybill block inside a `CreateWaybill` request.
  *
  * Multiple waybills can be batched in one HTTP call by passing several of
- * these to {@see WaybillRequestData}.
+ * these to {@see WaybillRequestData}. `printFormat` and `product` accept the
+ * typed enums or a raw string for contract-specific values not yet modelled.
  */
 final readonly class WaybillData
 {
@@ -17,8 +21,8 @@ final readonly class WaybillData
      */
     public function __construct(
         public string $clientReferenceId,
-        public string $printFormat,
-        public string $product,
+        public PrintFormat|string $printFormat,
+        public Product|string $product,
         public AddressData $sender,
         public AddressData $receiver,
         public array $declared,
@@ -38,8 +42,8 @@ final readonly class WaybillData
 
         return [
             'clientReferenceId' => $this->clientReferenceId,
-            'printFormat' => $this->printFormat,
-            'product' => $this->product,
+            'printFormat' => $this->printFormat instanceof PrintFormat ? $this->printFormat->value : $this->printFormat,
+            'product' => $this->product instanceof Product ? $this->product->value : $this->product,
             'data' => [
                 'declared' => $declared,
                 'content' => $this->content,

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use SmartDato\PostIt\Data\ServicesData;
-use SmartDato\PostIt\Enums\PaymentModeEnum;
+use SmartDato\PostIt\Enums\PaymentMode;
 
 it('returns empty array when nothing is set', function (): void {
     expect((new ServicesData)->toArray())->toBe([]);
@@ -18,7 +18,7 @@ it('serialises multicollo as empty object payload', function (): void {
 it('serialises COD with formatted amount and payment mode', function (): void {
     $services = new ServicesData(
         codAmount: 50.0,
-        codPaymentMode: PaymentModeEnum::CashOnDelivery,
+        codPaymentMode: PaymentMode::CashOnDelivery,
     );
 
     expect($services->toArray())->toBe([
@@ -29,7 +29,7 @@ it('serialises COD with formatted amount and payment mode', function (): void {
 it('always formats COD amount to two decimals', function (): void {
     $services = new ServicesData(
         codAmount: 7,
-        codPaymentMode: PaymentModeEnum::AccountChargeBank,
+        codPaymentMode: PaymentMode::AccountChargeBank,
     );
 
     expect($services->toArray()['APT000918']['amount'])->toBe('7.00');
@@ -39,7 +39,7 @@ it('combines multicollo + COD + arbitrary extra services', function (): void {
     $services = new ServicesData(
         multicolloCode: 'APT000945',
         codAmount: 12.5,
-        codPaymentMode: PaymentModeEnum::AccountChargeMail,
+        codPaymentMode: PaymentMode::AccountChargeMail,
         extra: [
             'APT999999' => ['flag' => 'true'],
         ],
@@ -54,7 +54,7 @@ it('combines multicollo + COD + arbitrary extra services', function (): void {
 
 it('skips COD when only one of amount or paymentMode is set', function (): void {
     expect(new ServicesData(codAmount: 50.0)->toArray())->toBe([])
-        ->and(new ServicesData(codPaymentMode: PaymentModeEnum::CashOnDelivery)->toArray())->toBe([]);
+        ->and(new ServicesData(codPaymentMode: PaymentMode::CashOnDelivery)->toArray())->toBe([]);
 });
 
 it('skips multicollo when code is empty string', function (): void {

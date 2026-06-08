@@ -15,7 +15,7 @@ afterEach(fn () => MockClient::destroyGlobal());
 it('exchanges credentials for an access token and applies Bearer header', function (): void {
     $mock = MockClient::global([
         AuthRequest::class => MockResponse::make(['access_token' => 'tok-123'], 200),
-        TrackShipmentRequest::class => MockResponse::make(['shipments' => [['waybillNumber' => 'WB1', 'tracingHistory' => []]]], 200),
+        TrackShipmentRequest::class => MockResponse::make(['return' => ['code' => 0, 'shipment' => [['waybillNumber' => 'WB1', 'tracking' => []]]]], 200),
     ]);
 
     $connector = new PosteItalianeConnector('https://api.test', 'cli-1');
@@ -76,7 +76,7 @@ it('throws when authentication request fails', function (): void {
 it('caches the token across multiple requests', function (): void {
     $mock = MockClient::global([
         AuthRequest::class => MockResponse::make(['access_token' => 'tok-cached'], 200),
-        TrackShipmentRequest::class => MockResponse::make(['shipments' => [['waybillNumber' => 'WB1', 'tracingHistory' => []]]], 200),
+        TrackShipmentRequest::class => MockResponse::make(['return' => ['code' => 0, 'shipment' => [['waybillNumber' => 'WB1', 'tracking' => []]]]], 200),
     ]);
 
     $authenticator = new SessionAuthenticator(
@@ -101,7 +101,7 @@ it('caches the token across multiple requests', function (): void {
 it('sends correct credential body to /user/sessions', function (): void {
     $mock = MockClient::global([
         AuthRequest::class => MockResponse::make(['access_token' => 'tok-x'], 200),
-        TrackShipmentRequest::class => MockResponse::make(['shipments' => [['waybillNumber' => 'WB', 'tracingHistory' => []]]], 200),
+        TrackShipmentRequest::class => MockResponse::make(['return' => ['code' => 0, 'shipment' => [['waybillNumber' => 'WB', 'tracking' => []]]]], 200),
     ]);
 
     $connector = new PosteItalianeConnector('https://api.test', 'cli-9');

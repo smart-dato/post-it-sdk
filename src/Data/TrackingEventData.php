@@ -9,9 +9,10 @@ use DateTimeImmutable;
 /**
  * Single tracking event extracted from the Poste Italiane tracking response.
  *
- * The upstream payload shape is loosely documented and varies between products
- * (postal vs courier). Fields are deliberately nullable; consumers are expected
- * to render whatever is present.
+ * Maps the documented `shipment[].tracking[]` entry: `status` →
+ * {@see self::statusCode}, `StatusDescription` → {@see self::statusDescription},
+ * `officeDescription` → {@see self::location}, `data` → {@see self::occurredAt}.
+ * Fields are nullable because individual entries may omit them.
  */
 final readonly class TrackingEventData
 {
@@ -20,5 +21,7 @@ final readonly class TrackingEventData
         public ?string $statusDescription,
         public ?string $location,
         public ?DateTimeImmutable $occurredAt,
+        public ?string $phase = null,
+        public ?string $synthesisStatusDescription = null,
     ) {}
 }

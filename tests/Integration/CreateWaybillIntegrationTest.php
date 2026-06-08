@@ -10,7 +10,14 @@ use SmartDato\PostIt\Data\WaybillRequestData;
 use SmartDato\PostIt\Data\WaybillResponseData;
 use SmartDato\PostIt\PostIt;
 
-it('creates a domestic waybill against the live test environment', function (): void {
+/**
+ * Mirrors the production "create shipment" payload (domestic Express
+ * APT000901, 1011 print format) with fake Mustermann/Rossi parties.
+ *
+ * WARNING: when POST_IT_TEST_COST_CENTER is set this creates a *real*
+ * shipment against whatever POST_IT_TEST_BASE_URL points to.
+ */
+it('creates a domestic Express waybill against the live environment', function (): void {
     $creds = postItIntegrationCredentials();
     $costCenter = getenv('POST_IT_TEST_COST_CENTER');
 
@@ -29,38 +36,44 @@ it('creates a domestic waybill against the live test environment', function (): 
         shipmentDate: new DateTimeImmutable,
         waybills: [
             new WaybillData(
-                clientReferenceId: 'INT-TEST-'.date('YmdHis'),
-                printFormat: PrintFormat::A4,
+                clientReferenceId: 'TEST-'.date('YmdHis'),
+                printFormat: PrintFormat::FORMAT_1011,
                 product: $product,
                 sender: new AddressData(
-                    nameSurname: 'Ditta delle Ditte',
-                    contactName: 'Mario Rossi',
-                    address: 'via pinco panco',
-                    streetNumber: '45',
-                    zipCode: '00142',
-                    city: 'ROMA',
-                    cellphone: '393331111111',
-                    phone: '393331111111',
+                    nameSurname: 'Mustermann GmbH',
+                    contactName: 'Hannes Mustermann',
+                    address: 'Via Luigi Negrelli',
+                    streetNumber: '15',
+                    zipCode: '39100',
+                    city: 'BOLZANO',
+                    cellphone: '+390471000000',
+                    phone: '+390471000000',
+                    email: 'hannes.mustermann@example.com',
                 ),
                 receiver: new AddressData(
-                    nameSurname: 'Ditta test',
-                    contactName: 'Aldo Bianchi',
-                    address: 'Viale del tramonto',
-                    streetNumber: '27',
-                    zipCode: '80010',
-                    city: 'NAPOLI',
-                    cellphone: '393332222222',
-                    phone: '393332222222',
+                    nameSurname: 'Rossi SNC',
+                    contactName: 'Mario Rossi',
+                    address: 'Via Giuseppe Di Vittorio',
+                    streetNumber: '18',
+                    zipCode: '48026',
+                    city: 'RUSSI',
+                    cellphone: '',
+                    phone: '',
+                    email: 'mario.rossi@example.com',
                 ),
-                declared: [new DeclarationData(weightGrams: 1000, heightCm: 10, lengthCm: 30, widthCm: 25)],
+                declared: [new DeclarationData(weightGrams: 6880, heightCm: 13, lengthCm: 28, widthCm: 18)],
             ),
         ],
     ));
 
     expect($response)->toBeInstanceOf(WaybillResponseData::class)
+        ->and($response->contractCode)->toBeString()->not->toBeEmpty()
         ->and($response->waybills)->not->toBeEmpty()
         ->and($response->waybills[0]['code'])->toBeString()->not->toBeEmpty();
+
+    echo "\nCreated waybill: {$response->waybills[0]['code']}\n";
+    echo 'Label: '.($response->waybills[0]['downloadURL'] ?? '(paperless)')."\n";
 })->skip(
     fn () => postItIntegrationCredentials() === null || ! getenv('POST_IT_TEST_COST_CENTER'),
-    'Also set POST_IT_TEST_COST_CENTER (a valid cost-centre for the test account) to run the live waybill-creation test.'
+    'Also set POST_IT_TEST_COST_CENTER (a valid cost-centre for the account) to run the live waybill-creation test.'
 );

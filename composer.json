@@ -45,7 +45,8 @@
         "lint": "vendor/bin/pint",
         "test:lint": "vendor/bin/pint --test",
         "test:types": "vendor/bin/phpstan analyse",
-        "test:unit": "vendor/bin/pest",
+        "test:unit": "vendor/bin/pest --testsuite=Unit,Feature",
+        "test:integration": "vendor/bin/pest --testsuite=Integration",
         "test": [
             "@test:lint",
             "@test:types",

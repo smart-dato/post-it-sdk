@@ -28,6 +28,8 @@ final readonly class PostIt
 {
     public const string PRODUCTION_BASE_URL = 'https://apiw.gp.posteitaliane.it/gp/internet';
 
+    public const string TEST_BASE_URL = 'https://apid.gp.posteitaliane.it/dev/kindergarden';
+
     private PosteItalianeConnector $connector;
 
     public function __construct(
@@ -61,6 +63,18 @@ final readonly class PostIt
         string $grantType = 'client_credentials',
     ): self {
         return new self(self::PRODUCTION_BASE_URL, $clientId, $clientSecret, $scope, $grantType);
+    }
+
+    /**
+     * Client pointed at the Poste Italiane test environment ("kindergarden").
+     */
+    public static function test(
+        string $clientId,
+        string $clientSecret,
+        string $scope,
+        string $grantType = 'client_credentials',
+    ): self {
+        return new self(self::TEST_BASE_URL, $clientId, $clientSecret, $scope, $grantType);
     }
 
     public function connector(): PosteItalianeConnector

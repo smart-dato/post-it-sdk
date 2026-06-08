@@ -165,14 +165,38 @@ MockClient::global([
 MockClient::destroyGlobal();
 ```
 
+## Integration tests (live API)
+
+The default suite is fully mocked. A separate `tests/Integration` suite hits
+the real Poste Italiane **test environment** ("kindergarden",
+`PostIt::TEST_BASE_URL`). Those tests **skip themselves** unless the required
+env vars are set, so they never break CI:
+
+```bash
+export POST_IT_TEST_CLIENT_ID='...'        # see docs/MANUALE WS PDB for the sandbox client/secret
+export POST_IT_TEST_CLIENT_SECRET='...'
+export POST_IT_TEST_SCOPE='api://8f0f2c58-19a8-45ef-9f9e-8bcb0acc7657/.default'
+
+# optional overrides
+export POST_IT_TEST_BASE_URL='https://apid.gp.posteitaliane.it/dev/kindergarden'
+export POST_IT_TEST_WAYBILL='ZA123456789IT'   # tracking sample
+export POST_IT_TEST_COST_CENTER='CDC-...'     # enables the live waybill-creation test
+
+composer test:integration
+```
+
+`PostIt::test(...)` is a convenience factory pointed at the test environment,
+mirroring `PostIt::production(...)`.
+
 ## Quality gate
 
 ```bash
-composer test           # pint + phpstan + pest
-composer test:lint      # pint --test
-composer test:types     # phpstan analyse
-composer test:unit      # pest
-composer lint           # pint (fix)
+composer test             # pint + phpstan + pest (mocked Unit + Feature)
+composer test:lint        # pint --test
+composer test:types       # phpstan analyse
+composer test:unit        # pest (Unit + Feature)
+composer test:integration # pest (live API; skipped without POST_IT_TEST_* env)
+composer lint             # pint (fix)
 ```
 
 ## License

@@ -10,7 +10,9 @@ Saloon-based client for the Poste Italiane (POST_IT) shipping API.
 - OAuth-style session authentication (`POST /user/sessions`) with per-account token caching — in-memory by default, or a shared cache across processes
 - Waybill creation (`POST /postalandlogistics/parcel/waybill`) — domestic **and** international, returns the label PDF URL
 - Shipment tracking (`POST /postalandlogistics/parcel/tracking`) — returns normalised events
-- Typed readonly DTOs for every request/response payload, with enums (`PrintFormat`, `Product`, `PaymentMode`, `ReceiverType`) and a lenient `make()` factory
+- International lookups — countries (`/international/nations`), country/product detail (`/international/nation/details`) and TARIC codes (`/international/taric`)
+- Pickups & deposits — book/edit/cancel a pickup (`/pickup`), pickup report (`/pickupReport`), deposits list (`/depositsList`) and release (`/depositsRelease`)
+- Typed readonly DTOs for every request/response payload, with enums (`PrintFormat`, `Product`, `PaymentMode`, `ReceiverType`, `BookingType`, `TimeSlot`, `PickupOperation`, `ReleaseAction`) and a lenient `make()` factory
 - Mockable end-to-end via Saloon's `MockClient`
 
 ## Installation
@@ -189,6 +191,72 @@ foreach ($tracking->events as $event) {
 Each `TrackingEventData` also exposes `occurredAt` (`?DateTimeImmutable`),
 `phase`, and `synthesisStatusDescription`. Pass `fullHistory: false` to receive
 only the latest tracing state instead of the entire history.
+
+## International lookups
+
+These supporting endpoints feed the data needed to compile international
+waybills. The country/TARIC lists take no request body.
+
+```php
+$nations = $client->listNations();                 // NationsResponseData
+foreach ($nations->nations as $nation) {
+    echo $nation->iso4.' '.$nation->name.PHP_EOL;   // iso4, iso2, extraEu, states[], products[]
+}
+
+$taric = $client->listTaric();                      // extra-EU standard products only
+echo $taric->taric[0]->code.' '.$taric->taric[0]->englishDescription;
+
+// Detailed sheet for a country + product: allowed contents, required docs, transit times, customs notes.
+$details = $client->getNationDetails('FRA1', Product::InternationalStandard->value);
+$details->carriers['EURODIS']->contents;            // ContentTypeData[] with attachments + deliveryTimes
+$details->customsByProduct['APT000904']['customsInfo'];
+```
+
+## Pickups & deposits
+
+```php
+use SmartDato\PostIt\Data\PickupAddressData;
+use SmartDato\PostIt\Data\PickupBookingData;
+use SmartDato\PostIt\Data\PickupContentData;
+use SmartDato\PostIt\Data\PickupReportFilterData;
+use SmartDato\PostIt\Data\DepositsListFilterData;
+use SmartDato\PostIt\Data\DepositsReleaseData;
+use SmartDato\PostIt\Enums\BookingType;
+use SmartDato\PostIt\Enums\PickupOperation;
+use SmartDato\PostIt\Enums\ReleaseAction;
+use SmartDato\PostIt\Enums\TimeSlot;
+
+// Book a pickup — `where` is the only mandatory address.
+$booking = $client->bookPickup(new PickupBookingData(
+    operation: PickupOperation::Add,
+    bookingType: BookingType::Multiple,
+    where: new PickupAddressData(givenName: 'Acme Srl', streetName: 'Via Roma', streetNumber: '1', town: 'Roma', region: 'RM', postCode: '00100', country: 'IT'),
+    pickupDate: '20260610',                         // examples use YYYYMMDD
+    timeSlot: TimeSlot::Morning,
+    contents: [new PickupContentData(containerType: 'P', quantity: 3, weightKg: 5, heightCm: 20, widthCm: 30, lengthCm: 40)],
+));
+$booking->bookingId;
+
+// Report (date range capped at 10 days), deposits list and release.
+$report = $client->getPickupReport(new PickupReportFilterData(dateFrom: '2026-06-01', dateTo: '2026-06-08'));
+$deposits = $client->listDeposits(new DepositsListFilterData(dateFrom: '20260601', dateTo: '20260608'));
+
+$release = $client->releaseDeposit(new DepositsReleaseData(
+    shipmentId: 'ZA123456789IT',
+    releaseAction: ReleaseAction::DeliverToAnotherAddress,
+    address: new PickupAddressData(givenName: 'Mario Rossi', streetName: 'Via Milano', streetNumber: '2', town: 'Milano', postCode: '20100'),
+));
+$release->failed();                                 // per-barcode outcomes that returned KO
+```
+
+The pickup/deposit responses report success via an `OK`/`KO` outcome; the SDK
+throws `PostItApiException` on failure (except per-barcode release outcomes,
+which are exposed on `DepositsReleaseResponseData::$items` / `failed()`).
+
+> **Note:** date formats and a few field names differ between the manual's
+> tables and its JSON examples (e.g. `pickupDate` as `YYYYMMDD` vs `YYYY-MM-DD`,
+> `content`/`tipocontText`). The SDK follows the example payloads and passes
+> dates through as strings — verify against the test environment for your contract.
 
 ## Enums for fixed values
 

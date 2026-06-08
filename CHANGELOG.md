@@ -2,6 +2,18 @@
 
 All notable changes to `Poste Italiane SDK for Laravel` will be documented in this file.
 
+## 0.0.3 - 2026-06-08
+
+### Added
+
+- Complete coverage of the v1.9 API manual — every documented service now has a typed `PostIt` method.
+  - International lookups: countries (`listNations()`), country/product detail (`getNationDetails()`), TARIC codes (`listTaric()`), extra services & carrier (`getServices()`) and the international PUDO location finder (`findInternationalPudos()`).
+  - Pickups & deposits: `bookPickup()`, `getPickupReport()`, `listDeposits()`, `releaseDeposit()`.
+  - Proof of delivery: `requestDigipod()`, `downloadDigipod()`.
+  - Delivery point master data (`findDeliveryPoints()`), transit-time estimates (`getTransitTime()`) and the Green Index emissions dashboard (`getGreenIndex()`).
+- New typed enums: `BookingType`, `TimeSlot`, `PickupOperation`, `ReleaseAction`, `DeliveryPointServiceType`.
+- Typed request/response DTOs for every new endpoint, mockable end-to-end via Saloon's `MockClient`.
+
 ## 0.0.2 - 2026-06-08
 
 ### Added

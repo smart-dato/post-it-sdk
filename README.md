@@ -7,10 +7,10 @@
 
 Saloon-based client for the Poste Italiane (POST_IT) shipping API.
 
-- OAuth-style session authentication (`POST /user/sessions`) with in-memory token caching
-- Waybill creation (`POST /postalandlogistics/parcel/waybill`) — returns label PDF URL
+- OAuth-style session authentication (`POST /user/sessions`) with per-account token caching — in-memory by default, or a shared cache across processes
+- Waybill creation (`POST /postalandlogistics/parcel/waybill`) — domestic **and** international, returns the label PDF URL
 - Shipment tracking (`POST /postalandlogistics/parcel/tracking`) — returns normalised events
-- Typed readonly DTOs for every request and response payload
+- Typed readonly DTOs for every request/response payload, with enums (`PrintFormat`, `Product`, `PaymentMode`, `ReceiverType`) and a lenient `make()` factory
 - Mockable end-to-end via Saloon's `MockClient`
 
 ## Installation
@@ -186,8 +186,9 @@ foreach ($tracking->events as $event) {
 }
 ```
 
-Pass `fullHistory: false` to receive only the latest tracing state instead of
-the entire history.
+Each `TrackingEventData` also exposes `occurredAt` (`?DateTimeImmutable`),
+`phase`, and `synthesisStatusDescription`. Pass `fullHistory: false` to receive
+only the latest tracing state instead of the entire history.
 
 ## Enums for fixed values
 

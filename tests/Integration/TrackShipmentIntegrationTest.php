@@ -20,7 +20,7 @@ it('tracks a shipment against the live test environment', function (): void {
     $waybillNumber = getenv('POST_IT_TEST_WAYBILL') ?: 'ZA123456789IT';
 
     $tracking = $client->trackShipment($waybillNumber);
-
+    print_r($tracking);
     expect($tracking)->toBeInstanceOf(TrackingResponseData::class)
         ->and($tracking->waybillNumber)->toBeString();
 

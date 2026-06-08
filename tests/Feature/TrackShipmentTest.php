@@ -93,3 +93,19 @@ it('sends the correct tracking request envelope', function (): void {
             ],
         ]);
 });
+
+it('requests only the latest state when fullHistory is false', function (): void {
+    $mock = MockClient::global([
+        AuthRequest::class => MockResponse::make(['access_token' => 'tok']),
+        TrackShipmentRequest::class => MockResponse::make([
+            'return' => ['code' => 0, 'shipment' => [['waybillNumber' => 'WB1', 'tracking' => []]]],
+        ]),
+    ]);
+
+    makeTrackingPostIt()->trackShipment('WB1', fullHistory: false);
+
+    /** @var array<string, mixed> $body */
+    $body = $mock->findResponseByRequest(TrackShipmentRequest::class)?->getPendingRequest()->body()->all() ?? [];
+
+    expect($body['arg0']['shipmentsData'][0]['lastTracingState'])->toBe('Y');
+});

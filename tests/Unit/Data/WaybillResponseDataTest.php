@@ -45,13 +45,18 @@ it('throws when waybills array is empty', function (): void {
 it('throws when waybill is missing code', function (): void {
     expect(fn () => WaybillResponseData::fromArray([
         'waybills' => [['downloadURL' => 'https://x.test/a.pdf']],
-    ]))->toThrow(PostItApiException::class, 'missing waybill code or downloadURL');
+    ]))->toThrow(PostItApiException::class, 'missing a waybill code');
 });
 
-it('throws when waybill is missing downloadURL', function (): void {
-    expect(fn () => WaybillResponseData::fromArray([
+it('accepts a paperless waybill with no downloadURL', function (): void {
+    $response = WaybillResponseData::fromArray([
+        'paperless' => true,
         'waybills' => [['code' => 'WB1']],
-    ]))->toThrow(PostItApiException::class, 'missing waybill code or downloadURL');
+    ]);
+
+    expect($response->waybills)->toHaveCount(1)
+        ->and($response->waybills[0]['code'])->toBe('WB1')
+        ->and($response->waybills[0]['downloadURL'])->toBeNull();
 });
 
 it('treats result.errorCode = 0 as success', function (): void {

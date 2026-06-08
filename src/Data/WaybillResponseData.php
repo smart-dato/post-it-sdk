@@ -14,7 +14,7 @@ use SmartDato\PostIt\Exceptions\PostItApiException;
 final readonly class WaybillResponseData
 {
     /**
-     * @param  array<int, array{code: string, downloadURL: string}>  $waybills
+     * @param  array<int, array{code: string, downloadURL: ?string}>  $waybills
      */
     public function __construct(
         public string $costCenterCode,
@@ -45,13 +45,13 @@ final readonly class WaybillResponseData
                 continue;
             }
             $code = (string) ($waybill['code'] ?? '');
-            $url = (string) ($waybill['downloadURL'] ?? '');
-            if ($code === '' || $url === '') {
+            if ($code === '') {
                 throw new PostItApiException(
-                    'Poste Italiane response is missing waybill code or downloadURL.',
+                    'Poste Italiane response is missing a waybill code.',
                 );
             }
-            $waybills[] = ['code' => $code, 'downloadURL' => $url];
+            $url = (string) ($waybill['downloadURL'] ?? '');
+            $waybills[] = ['code' => $code, 'downloadURL' => $url === '' ? null : $url];
         }
 
         if ($waybills === []) {

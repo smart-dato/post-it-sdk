@@ -31,3 +31,6 @@ phpstan.neon
 testbench.yaml
 /docs
 /coverage
+
+# Integration test credentials (local only — never commit real secrets)
+/tests/integration.env

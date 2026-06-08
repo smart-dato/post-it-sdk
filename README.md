@@ -53,6 +53,28 @@ $client = new PostIt(
 );
 ```
 
+### Token caching (multi-account)
+
+By default the access token is cached **in-memory on the instance** and
+refreshed automatically as it nears the `expires_in` deadline. Pass a Laravel
+cache repository to share tokens **across requests and processes**:
+
+```php
+use Illuminate\Support\Facades\Cache;
+
+$client = PostIt::production(
+    clientId: $account->client_id,
+    clientSecret: $account->client_secret,
+    scope: $account->scope,
+    cache: Cache::store('redis'),
+);
+```
+
+The cache key is scoped per account — `post-it:token:{clientId}:{hash}`, where
+the hash folds in the base URL, scope, grant type, and secret. Several accounts
+may therefore share a single cache store and **will never be served each
+other's token**; a rotated secret transparently invalidates the cached entry.
+
 ## Creating a waybill
 
 ```php

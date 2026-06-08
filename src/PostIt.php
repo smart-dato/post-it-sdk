@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace SmartDato\PostIt;
 
+use Illuminate\Contracts\Cache\Repository;
 use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Exceptions\Request\RequestException;
 use Saloon\Http\Request;
 use Saloon\Http\Response;
 use SmartDato\PostIt\Auth\SessionAuthenticator;
+use SmartDato\PostIt\Cache\LaravelTokenStore;
 use SmartDato\PostIt\Connector\PosteItalianeConnector;
 use SmartDato\PostIt\Data\TrackingResponseData;
 use SmartDato\PostIt\Data\WaybillRequestData;
@@ -38,6 +40,7 @@ final readonly class PostIt
         string $clientSecret,
         string $scope,
         string $grantType = 'client_credentials',
+        ?Repository $cache = null,
     ) {
         $this->connector = new PosteItalianeConnector(
             baseUrl: $baseUrl,
@@ -53,6 +56,7 @@ final readonly class PostIt
                 baseUrl: $baseUrl,
                 clientId: $clientId,
             ),
+            tokenStore: $cache instanceof Repository ? new LaravelTokenStore($cache) : null,
         ));
     }
 
@@ -61,8 +65,9 @@ final readonly class PostIt
         string $clientSecret,
         string $scope,
         string $grantType = 'client_credentials',
+        ?Repository $cache = null,
     ): self {
-        return new self(self::PRODUCTION_BASE_URL, $clientId, $clientSecret, $scope, $grantType);
+        return new self(self::PRODUCTION_BASE_URL, $clientId, $clientSecret, $scope, $grantType, $cache);
     }
 
     /**
@@ -73,8 +78,9 @@ final readonly class PostIt
         string $clientSecret,
         string $scope,
         string $grantType = 'client_credentials',
+        ?Repository $cache = null,
     ): self {
-        return new self(self::TEST_BASE_URL, $clientId, $clientSecret, $scope, $grantType);
+        return new self(self::TEST_BASE_URL, $clientId, $clientSecret, $scope, $grantType, $cache);
     }
 
     public function connector(): PosteItalianeConnector

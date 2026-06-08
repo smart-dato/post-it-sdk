@@ -11,6 +11,7 @@ use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Exceptions\Request\RequestException;
 use Saloon\Http\PendingRequest;
 use SmartDato\PostIt\Connector\PosteItalianeConnector;
+use SmartDato\PostIt\Contracts\TokenStore;
 use SmartDato\PostIt\Exceptions\PostItApiException;
 use SmartDato\PostIt\Requests\AuthRequest;
 
@@ -18,12 +19,11 @@ use SmartDato\PostIt\Requests\AuthRequest;
  * Lazily exchanges client credentials for an access token, then attaches
  * `Authorization: Bearer <token>` to every authenticated request.
  *
- * The token is cached on the authenticator instance and reused until it nears
- * the `expires_in` deadline returned by Poste Italiane (tokens live ~1 hour),
- * after which it is transparently refreshed. Reuse the same authenticator
- * across requests to avoid redundant `/user/sessions` round-trips. Long-lived
- * caching across processes is the caller's responsibility (e.g. the
- * integrating application's cache layer).
+ * Tokens are cached in two layers: in-memory on the instance (L1) and, when a
+ * {@see TokenStore} is supplied, in a shared cache (L2) keyed per `clientId`.
+ * The per-account key means several accounts may share one cache store without
+ * ever serving each other's token. Both layers honour the `expires_in`
+ * deadline (minus a safety margin) and refresh transparently on expiry.
  */
 final class SessionAuthenticator implements Authenticator
 {
@@ -48,6 +48,7 @@ final class SessionAuthenticator implements Authenticator
         private readonly string $scope,
         private readonly string $grantType,
         private readonly PosteItalianeConnector $authConnector,
+        private readonly ?TokenStore $tokenStore = null,
         private readonly ?Closure $clock = null,
     ) {}
 
@@ -69,8 +70,15 @@ final class SessionAuthenticator implements Authenticator
      */
     private function resolveToken(): string
     {
-        if (is_string($this->accessToken) && $this->accessToken !== '' && $this->now() < $this->expiresAt) {
+        $now = $this->now();
+
+        if (is_string($this->accessToken) && $this->accessToken !== '' && $now < $this->expiresAt) {
             return $this->accessToken;
+        }
+
+        $shared = $this->readFromStore($now);
+        if ($shared !== null) {
+            return $shared;
         }
 
         $response = $this->authConnector->send(new AuthRequest(
@@ -96,9 +104,81 @@ final class SessionAuthenticator implements Authenticator
 
         $expiresIn = $response->json('expires_in');
         $ttl = is_numeric($expiresIn) ? (int) $expiresIn : self::DEFAULT_TTL;
-        $this->expiresAt = $this->now() + max(0, $ttl - self::EXPIRY_SAFETY_MARGIN);
+        $lifetime = max(0, $ttl - self::EXPIRY_SAFETY_MARGIN);
 
-        return $this->accessToken = $accessToken;
+        $this->expiresAt = $now + $lifetime;
+        $this->accessToken = $accessToken;
+        $this->writeToStore($accessToken, $this->expiresAt, max(1, $lifetime));
+
+        return $accessToken;
+    }
+
+    private function readFromStore(int $now): ?string
+    {
+        if (! $this->tokenStore instanceof TokenStore) {
+            return null;
+        }
+
+        $raw = $this->tokenStore->get($this->cacheKey());
+
+        if ($raw === null) {
+            return null;
+        }
+
+        try {
+            /** @var mixed $decoded */
+            $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return null;
+        }
+
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        $token = $decoded['token'] ?? null;
+        $expiresAt = $decoded['expiresAt'] ?? null;
+
+        if (! is_string($token) || $token === '' || ! is_int($expiresAt) || $now >= $expiresAt) {
+            return null;
+        }
+
+        $this->accessToken = $token;
+        $this->expiresAt = $expiresAt;
+
+        return $token;
+    }
+
+    private function writeToStore(string $token, int $expiresAt, int $ttlSeconds): void
+    {
+        if (! $this->tokenStore instanceof TokenStore) {
+            return;
+        }
+
+        $payload = json_encode(['token' => $token, 'expiresAt' => $expiresAt]);
+
+        if ($payload === false) {
+            return;
+        }
+
+        $this->tokenStore->put($this->cacheKey(), $payload, $ttlSeconds);
+    }
+
+    /**
+     * Per-account cache key. `clientId` is kept in clear for debuggability; the
+     * remaining inputs (including the secret) are folded into a short hash so a
+     * changed environment, scope, or rotated secret never reuses a stale token.
+     */
+    private function cacheKey(): string
+    {
+        $discriminator = substr(hash('sha256', implode('|', [
+            $this->authConnector->resolveBaseUrl(),
+            $this->scope,
+            $this->grantType,
+            $this->clientSecret,
+        ])), 0, 16);
+
+        return sprintf('post-it:token:%s:%s', $this->clientId, $discriminator);
     }
 
     private function now(): int

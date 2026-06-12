@@ -18,6 +18,7 @@ final readonly class InternationalData
 {
     public function __construct(
         public ReceiverType|string $receiverType,
+        public ?string $offeringType = null,
         public ?string $currency = null,
         public ?string $waybillTotalValue = null,
         public ?string $contentCode = null,
@@ -37,6 +38,10 @@ final readonly class InternationalData
 
         if ($this->currency !== null) {
             $data['currency'] = $this->currency;
+        }
+
+        if ($this->offeringType !== null) {
+            $data['offeringType'] = $this->offeringType;
         }
 
         if ($this->waybillTotalValue !== null) {

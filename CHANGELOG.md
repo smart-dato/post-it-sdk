@@ -2,6 +2,12 @@
 
 All notable changes to `Poste Italiane SDK for Laravel` will be documented in this file.
 
+## 0.0.4 - 2026-06-12
+
+### Added
+
+- Optional `offeringType` field on the `InternationalData` block, serialised only when set.
+
 ## 0.0.3 - 2026-06-08
 
 ### Added

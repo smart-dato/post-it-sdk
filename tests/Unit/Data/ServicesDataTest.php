@@ -53,10 +53,10 @@ it('combines multicollo + COD + arbitrary extra services', function (): void {
 });
 
 it('skips COD when only one of amount or paymentMode is set', function (): void {
-    expect(new ServicesData(codAmount: 50.0)->toArray())->toBe([])
-        ->and(new ServicesData(codPaymentMode: PaymentMode::CashOnDelivery)->toArray())->toBe([]);
+    expect((new ServicesData(codAmount: 50.0))->toArray())->toBe([])
+        ->and((new ServicesData(codPaymentMode: PaymentMode::CashOnDelivery))->toArray())->toBe([]);
 });
 
 it('skips multicollo when code is empty string', function (): void {
-    expect(new ServicesData(multicolloCode: '')->toArray())->toBe([]);
+    expect((new ServicesData(multicolloCode: ''))->toArray())->toBe([]);
 });
